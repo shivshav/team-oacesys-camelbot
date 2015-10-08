@@ -1,35 +1,54 @@
-# Author: Shiv
+# Description:
+#   A personal Hubot instance created for the oacesys
+#
+# Dependencies:
+#   None as far as I can tell
+#
+# Configuration:
+#   HUBOT_SLACK_TOKEN set as an environment variable
+#
+# Commands:
+#   hubot who has trash duty - Returns the slack user who has been assigned trash duty
+#
+# Author: 
+#   shivshav
+
 
 # Setup
 SlackClient = require('slack-node')
 slackToken = process.env.HUBOT_SLACK_TOKEN
+if not slackToken
+    console.log "ERROR: HUBOT_SLACK_TOKEN was not set as an environment variable"
+    return
 slack = new SlackClient(slackToken)
 
 TIMEZONE='America/Los_Angeles'
 TRASH_ASSIGNMENT_TIME='5 0 0 * * *' # Sec, Min, Hr, Day, Mon, DayOfWeek
+#TRASH_ASSIGNMENT_TIME = "askjdaslkdj"
 cronJob = require('cron').CronJob
         
 
-# Get firstime trash person
-# Note: This means that if the app crashes, trash duty goes to someone else, so this is my incentive to not have it crash...or to crash it, depending ;)
-if not process.env.HUBOT_TRASH_DUTY
-    slack.api "users.list", (err, res) ->
-        throw err if err
-        names = []
-        for user in res.members
-            if not user.is_bot
-                names.push user.name
-        chosenIdx = Math.floor(Math.random() * (names.length))
-        console.log "Idx is: #{chosenIdx}"
-        first = names[chosenIdx]
-        console.log "First time trash duty goes to: #{first}"
-        process.env.HUBOT_TRASH_DUTY=first
 
 util = require('util')
 
 module.exports = (robot) ->
 
-    console.log "Job started"
+    # Get firstime trash person
+    # Note: This means that if the app crashes, trash duty goes to someone else, so this is my incentive to not have it crash...or to crash it, depending ;)
+    garbageGuy = robot.brain.get('trashDuty')
+    if not garbageGuy
+        slack.api "users.list", (err, res) ->
+            throw err if err
+            names = []
+            for user in res.members
+                if not user.is_bot
+                    names.push user.name
+            chosenIdx = Math.floor(Math.random() * (names.length))
+            console.log "Idx is: #{chosenIdx}"
+            first = names[chosenIdx]
+            console.log "First time trash duty goes to: #{first}"
+            garbageGuy = first
+            robot.brain.set 'trashDuty', garbageGuy
 #    job = new CronJob TRASH_ASSIGNMENT_TIME,
 #            ->
 #                # get users here
@@ -51,16 +70,26 @@ module.exports = (robot) ->
 #            true
 #            TIMEZONE
 #    job.start
+    try
+        fiveSecJob = new cronJob
+            cronTime: TRASH_ASSIGNMENT_TIME,
+            onTick: every5Seconds,
+            onComplete: jobCompleted
+            start: true,
+        console.log "Job started"
+    catch
+        console.log "Ya dun goofed with the cron pattern"
 
-    fiveSecJob = new cronJob TRASH_ASSIGNMENT_TIME, every5Seconds, null, true, TIMEZONE
-
+    jobCompleted = ->
+        console.log "HEY LOOK OVER HERE!:!:!: Job is complete"
     every5Seconds = ->
         console.log "Is this happening every five?"
 
     robot.hear /trash duty goes to (%\S+)/, (slackRes) ->
         chosenOne = slackRes.match[1]
-        if process.env.HUBOT_TRASH_DUTY
-            slackRes.send "Nice try, #{process.env.HUBOT_TRASH_DUTY} already has trash duty"
+        garbageGuy = robot.brain.get 'trashDuty'
+        if garbageGuy
+            slackRes.send "Nice try, #{garbageGuy} already has trash duty"
         else
             [symbol, name] = chosenOne.split "%"
             isRealUser = false
@@ -74,13 +103,16 @@ module.exports = (robot) ->
                         break
                 console.log "Real User? #{isRealUser}"
                 if isRealUser
-                    process.env.HUBOT_TRASH_DUTY=chosenOne
+                    garbageGuy = chosenOne
+                    robot.brain.set 'trashDUty', garbageGuy
                     console.log "#{chosenOne} has been assigned trash duty"
                 else
                     console.log "#{chosenOne} is not a real user dummy"
+
     robot.hear /who has trash duty/i, (slackRes) ->
-        if process.env.HUBOT_TRASH_DUTY
-            slackRes.send "#{process.env.HUBOT_TRASH_DUTY} is on trash duty"
+        garbageGuy = robot.brain.get 'trashDuty'
+        if garbageGuy
+            slackRes.send "#{garbageGuy} is on trash duty"
         else
             slack.api "users.list", (err, res) ->
                 throw err if err
@@ -92,6 +124,6 @@ module.exports = (robot) ->
                 console.log "Idx is: #{chosenIdx}"
                 first = names[chosenIdx]
                 console.log "First name is: #{first}"
-                process.env.HUBOT_TRASH_DUTY=first
-    #            console.log "Trash duty goes to #{process.env.HUBOT_TRASH_DUTY}"
-                slackRes.send "#{process.env.HUBOT_TRASH_DUTY} is on trash duty"
+                garbageGuy = first
+                robot.brain.set 'trashDuty', garbageGuy
+                slackRes.send "#{garbageGuy} is on trash duty"
