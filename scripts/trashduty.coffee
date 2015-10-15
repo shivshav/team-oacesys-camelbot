@@ -41,8 +41,6 @@ module.exports = (robot) ->
 
     # Get firstime trash person
     # Note: This means that if the app crashes, trash duty goes to someone else, so this is my incentive to not have it crash...or to crash it, depending ;)
-#    robot.send.channel "@#{robot.name}"
-
     if not garbageGuy
         slack.api "users.list", (err, res) ->
             throw err if err
@@ -128,22 +126,6 @@ module.exports = (robot) ->
                 # Otherwise, tell the user how stupid they've been
                 else
                     console.log "#{chosenOne} is not a real user dummy"
-
-#    robot.hear /[Ff]ind our new garbage man/i, (slackRes) -> 
-#        garbageGuy = robot.brain.get 'trashDuty'
-#        slack.api "users.list", (err, res) ->
-#            throw err if err
-#            names = []
-#            for user in res.members
-#                if not user.is_bot
-#                    names.push user.name
-#            chosenIdx = (names.indexOf(garbageGuy) + 1)%names.length
-#            console.log "Idx is: #{chosenIdx}"
-#            nextTrashMan = names[chosenIdx]
-#            console.log "Next person on trash duty is: #{nextTrashMan}"
-#            garbageGuy = nextTrashMan
-#            robot.brain.set 'trashDuty', garbageGuy
-#            slackRes.send "It's #{garbageGuy}'s turn to take out the trash\nLet's get trashy #{garbageGuy}"
 
     robot.hear /[Ww]ho has trash duty\??/i, (slackRes) ->
         garbageGuy = robot.brain.get 'trashDuty'
