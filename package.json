@@ -6,6 +6,7 @@
   "description": "Our robot guide through the oacesys",
   "dependencies": {
     "cron": "^1.0.9",
+    "cron-parser": "^1.0.1",
     "hubot": "^2.16.0",
     "hubot-diagnostics": "0.0.1",
     "hubot-fliptable": ">= 0.0.0",
