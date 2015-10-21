@@ -51,32 +51,35 @@ arrayEqual = (a, b) ->
     a.length is b.length and a.every (elem, i) -> elem is b[i]
 
 module.exports = (robot) ->
-    # Check if we already have set trash person.
-    garbageGuy = robot.brain.get('trashDuty')
+    # Check if we already have set trash person once the storage backend has loaded.
+    robot.brain.on 'loaded', ->
+        garbageGuy = robot.brain.get('trashDuty')
     
-    # Get firstime trash person
-    # Note: This means that if the app crashes, trash duty goes to someone else, so this is my incentive to not have it crash...or to crash it, depending ;)
-    # TODO: Use a real redis backend to persist data between starts
-    if not garbageGuy
-        slack.api "users.list", (err, res) ->
-            throw err if err
-            names = res.members
-                        .filter (user) ->
-                            return not user.is_bot
-                        .map (user) ->
-                            return user.name
-                        .sort()
-            console.log "Names: #{names}"
-            chosenIdx = Math.floor(Math.random() * (names.length))
-            console.log "Idx is: #{chosenIdx}"
-            first = names[chosenIdx]
-#            console.log "First time trash duty goes to: #{first}"
-
-            console.log "First time trash duty goes to @#{first}\nSorry, this was a random assignment, so quit whining. Trash duty will be reassigned #{interval.next().toString()}."
-            garbageGuy = first
-            robot.brain.set 'currentMembers', names
-            robot.brain.set 'trashDuty', garbageGuy
-
+        # Get firstime trash person
+        # Note: This means that if the app crashes, trash duty goes to someone else, so this is my incentive to not have it crash...or to crash it, depending ;)
+        # TODO: Use a real redis backend to persist data between starts
+        if garbageGuy
+            console.log "Found #{garbageGuy} as our trash guy.\nNo more getting away from your duties, I've got cold storage sucka!"
+        else
+            slack.api "users.list", (err, res) ->
+                throw err if err
+                names = res.members
+                            .filter (user) ->
+                                return not user.is_bot
+                            .map (user) ->
+                                return user.name
+                            .sort()
+                console.log "Names: #{names}"
+                chosenIdx = Math.floor(Math.random() * (names.length))
+                console.log "Idx is: #{chosenIdx}"
+                first = names[chosenIdx]
+    #            console.log "First time trash duty goes to: #{first}"
+    
+                console.log "First time trash duty goes to @#{first}\nSorry, this was a random assignment, so quit whining. Trash duty will be reassigned #{interval.next().toString()}."
+                garbageGuy = first
+                robot.brain.set 'currentMembers', names
+                robot.brain.set 'trashDuty', garbageGuy
+    
     scheduledJob = schedule.scheduleJob TRASH_ASSIGNMENT_TIME, () ->
                         # Get list of api users
                         slack.api "users.list", (err, res) ->
